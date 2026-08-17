@@ -1,0 +1,8 @@
+# Build artifacts
+/distillscan
+/dist/
+
+# Generated reports (demo output)
+report.json
+report.html
+/out/
