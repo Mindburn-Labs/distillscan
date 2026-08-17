@@ -12,11 +12,11 @@ func TestModelMatching(t *testing.T) {
 		wantOK bool
 	}{
 		{"gpt-4o", true},
-		{"gpt-4o-2024-08-06", true},         // date suffix stripped
-		{"openai/gpt-4o", true},             // provider prefix stripped
-		{"GPT-4o-mini", true},               // case-insensitive, longest key wins
-		{"claude-sonnet-4-20250514", true},  // Anthropic date suffix
-		{"claude-3-5-haiku-latest", true},   // -latest suffix
+		{"gpt-4o-2024-08-06", true},        // date suffix stripped
+		{"openai/gpt-4o", true},            // provider prefix stripped
+		{"GPT-4o-mini", true},              // case-insensitive, longest key wins
+		{"claude-sonnet-4-20250514", true}, // Anthropic date suffix
+		{"claude-3-5-haiku-latest", true},  // -latest suffix
 		{"deepseek-chat", true},
 		{"totally-unknown-model", false},
 		{"", false},

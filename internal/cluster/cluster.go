@@ -61,13 +61,17 @@ func Template(prompt string) string {
 // TemplateKey returns the stable cluster key for a prompt: fnv64a over the
 // template's fixed-length prefix.
 func TemplateKey(prompt string) string {
-	return "tpl:" + hash(prefix(Template(prompt), templatePrefixLen))
+	return "tpl:" + PrefixTemplateHash(prompt)
 }
 
-// FullTemplateHash hashes the entire normalized template (not just the
-// prefix). Used inside a cluster for repetition and drift measurement.
-func FullTemplateHash(prompt string) string {
-	return hash(Template(prompt))
+// PrefixTemplateHash hashes the normalized template's fixed-length prefix —
+// the instruction head that defines a task. Scoring reuses it for repetition
+// (how many distinct instruction prefixes a cluster contains) and drift
+// (how that prefix distribution shifts over time). Deliberately blind to
+// variable payloads (documents, tickets) after the prefix: payload variety
+// is fine for distillation; instruction churn is not.
+func PrefixTemplateHash(prompt string) string {
+	return hash(prefix(Template(prompt), templatePrefixLen))
 }
 
 func prefix(s string, n int) string {

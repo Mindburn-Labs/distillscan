@@ -55,32 +55,32 @@ const LowSampleCalls = 20
 
 type Factor struct {
 	Name     string  `json:"name"`
-	Raw      float64 `json:"raw"`      // the measured quantity (share, rate, distance, count)
-	Score    float64 `json:"score"`    // 0..1 readiness contribution
+	Raw      float64 `json:"raw"`   // the measured quantity (share, rate, distance, count)
+	Score    float64 `json:"score"` // 0..1 readiness contribution
 	Weight   float64 `json:"weight"`
 	Declared bool    `json:"declared"` // true = from config, not measured
 	Detail   string  `json:"detail"`   // formula with the actual numbers
 }
 
 type Result struct {
-	Key           string         `json:"key"`
-	Label         string         `json:"label"`
-	Kind          string         `json:"kind"`
-	Calls         int            `json:"calls"`
-	Errors        int            `json:"errors"`
-	Models        map[string]int `json:"models"` // model -> call count
-	TopModel      string         `json:"top_model"`
-	InputTokens   int64          `json:"input_tokens"`
-	OutputTokens  int64          `json:"output_tokens"`
-	SpendUSD      float64        `json:"spend_usd_window"`
-	AnnualizedUSD float64        `json:"spend_usd_annualized"`
-	SavingsUSD    float64        `json:"est_annual_savings_usd"`
-	UnpricedCalls int            `json:"unpriced_calls"`
-	Factors       []Factor       `json:"factors"`
-	Composite     float64        `json:"composite_score"`
-	Verdict       string         `json:"verdict"`
-	Notes         []string       `json:"notes"`
-	SampleTemplate string        `json:"sample_template"`
+	Key            string         `json:"key"`
+	Label          string         `json:"label"`
+	Kind           string         `json:"kind"`
+	Calls          int            `json:"calls"`
+	Errors         int            `json:"errors"`
+	Models         map[string]int `json:"models"` // model -> call count
+	TopModel       string         `json:"top_model"`
+	InputTokens    int64          `json:"input_tokens"`
+	OutputTokens   int64          `json:"output_tokens"`
+	SpendUSD       float64        `json:"spend_usd_window"`
+	AnnualizedUSD  float64        `json:"spend_usd_annualized"`
+	SavingsUSD     float64        `json:"est_annual_savings_usd"`
+	UnpricedCalls  int            `json:"unpriced_calls"`
+	Factors        []Factor       `json:"factors"`
+	Composite      float64        `json:"composite_score"`
+	Verdict        string         `json:"verdict"`
+	Notes          []string       `json:"notes"`
+	SampleTemplate string         `json:"sample_template"`
 }
 
 // Assumptions echoes every knob that shaped the numbers.
@@ -176,7 +176,7 @@ func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, tota
 	}
 
 	// Bookkeeping shared by several factors.
-	fullTemplates := map[string]int{}
+	prefixTemplates := map[string]int{}
 	structured, errs := 0, 0
 	var inTok, outTok int64
 	latencies := make([]float64, 0, n)
@@ -185,7 +185,7 @@ func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, tota
 		r.Models[c.Model]++
 		inTok += c.InputTokens
 		outTok += c.OutputTokens
-		fullTemplates[cluster.FullTemplateHash(c.Prompt)]++
+		prefixTemplates[cluster.PrefixTemplateHash(c.Prompt)]++
 		if c.StructuredOutput {
 			structured++
 		}
@@ -224,16 +224,17 @@ func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, tota
 		Detail: fmt.Sprintf("min(1, log10(1+%d)/3); 1000 calls => 1.0", n),
 	}
 
-	// Repetition: how template-alike the prompts are.
-	// distinct = full-template variants; score = 1 - (distinct-1)/(n-1).
-	distinct := len(fullTemplates)
+	// Repetition: instruction uniformity. distinct = template-prefix
+	// variants (payload variety after the prefix is fine for distillation;
+	// instruction churn is not). score = 1 - (distinct-1)/(n-1).
+	distinct := len(prefixTemplates)
 	fRep := Factor{Name: "repetition", Raw: float64(distinct), Weight: WRepetition}
 	if n < 3 {
 		fRep.Score = 0.5
 		fRep.Detail = fmt.Sprintf("neutral 0.5: only %d call(s), no repetition evidence", n)
 	} else {
 		fRep.Score = clamp01(1 - float64(distinct-1)/float64(n-1))
-		fRep.Detail = fmt.Sprintf("1 - (%d distinct templates - 1)/(%d calls - 1)", distinct, n)
+		fRep.Detail = fmt.Sprintf("1 - (%d distinct template prefixes - 1)/(%d calls - 1)", distinct, n)
 	}
 
 	// Evaluability proxy: share of structured (JSON / tool-call) outputs —
@@ -336,8 +337,11 @@ func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, tota
 const minDriftCalls = 8
 
 // templateDrift splits the cluster's calls (already time-sorted) in half and
-// returns the total-variation distance between the two halves' full-template
-// distributions.
+// returns the total-variation distance between the two halves' template-prefix
+// distributions. Catches instruction/template revisions inside a task cluster.
+// Known limitation: template-keyed clusters share one prefix by construction,
+// so their drift is ~0 — drift detection is only meaningful where a task
+// label groups heterogeneous prompts.
 func templateDrift(cl *cluster.Cluster) (float64, bool) {
 	n := len(cl.Calls)
 	if n < minDriftCalls {
@@ -355,7 +359,7 @@ func templateDrift(cl *cluster.Cluster) (float64, bool) {
 	half := n / 2
 	early, late := map[string]float64{}, map[string]float64{}
 	for i, c := range cl.Calls {
-		h := cluster.FullTemplateHash(c.Prompt)
+		h := cluster.PrefixTemplateHash(c.Prompt)
 		if i < half {
 			early[h]++
 		} else {
@@ -363,15 +367,22 @@ func templateDrift(cl *cluster.Cluster) (float64, bool) {
 		}
 	}
 	nEarly, nLate := float64(half), float64(n-half)
-	keys := map[string]bool{}
+	keySet := map[string]bool{}
 	for k := range early {
-		keys[k] = true
+		keySet[k] = true
 	}
 	for k := range late {
-		keys[k] = true
+		keySet[k] = true
 	}
+	// Sorted iteration: float summation order must not depend on Go's
+	// randomized map order, or report.json stops being byte-reproducible.
+	keys := make([]string, 0, len(keySet))
+	for k := range keySet {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	tv := 0.0
-	for k := range keys {
+	for _, k := range keys {
 		tv += math.Abs(early[k]/nEarly - late[k]/nLate)
 	}
 	return tv / 2, true

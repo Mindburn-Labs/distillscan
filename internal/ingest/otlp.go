@@ -73,11 +73,11 @@ var aliasTable = map[string]field{
 	"http.route":            fTask,
 
 	// error / content
-	"error.type":                    fErrorType,
-	"gen_ai.input.messages":         fInputMessages,
-	"gen_ai.output.messages":        fOutputMessages,
-	"gen_ai.prompt":                 fPromptRaw,
-	"gen_ai.completion":             fCompletionRaw,
+	"error.type":                     fErrorType,
+	"gen_ai.input.messages":          fInputMessages,
+	"gen_ai.output.messages":         fOutputMessages,
+	"gen_ai.prompt":                  fPromptRaw,
+	"gen_ai.completion":              fCompletionRaw,
 	"gen_ai.response.finish_reasons": fFinishReasons,
 }
 

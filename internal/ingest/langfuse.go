@@ -40,8 +40,8 @@ type lfObservation struct {
 	CalculatedInputCost  *float64           `json:"calculatedInputCost"`
 	CalculatedOutputCost *float64           `json:"calculatedOutputCost"`
 
-	Level         string  `json:"level"`
-	StatusMessage *string `json:"statusMessage"`
+	Level         string   `json:"level"`
+	StatusMessage *string  `json:"statusMessage"`
 	LatencyMS     *float64 `json:"latency"`
 }
 

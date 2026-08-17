@@ -1,0 +1,5 @@
+# Demo declared factors for the fixture scan.
+# These are folded into scoring but always rendered "declared, not measured".
+data_rights: unknown    # yes | no | unknown - teacher ToS allows training on outputs
+safety_critical: false  # true forces a BORDERLINE cap; see internal/score
+substitution_ratio: 0.65

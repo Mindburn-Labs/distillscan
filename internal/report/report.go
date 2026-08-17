@@ -19,16 +19,16 @@ const Version = "0.1.0-prototype"
 
 // Report is the full machine-readable output (report.json).
 type Report struct {
-	Tool        string            `json:"tool"`
-	Version     string            `json:"version"`
-	GeneratedAt time.Time         `json:"generated_at"`
-	ScannedPath string            `json:"scanned_path"`
-	Ingest      IngestSummary     `json:"ingest"`
-	Assumptions score.Assumptions `json:"assumptions"`
+	Tool        string             `json:"tool"`
+	Version     string             `json:"version"`
+	GeneratedAt time.Time          `json:"generated_at"`
+	ScannedPath string             `json:"scanned_path"`
+	Ingest      IngestSummary      `json:"ingest"`
+	Assumptions score.Assumptions  `json:"assumptions"`
 	Weights     map[string]float64 `json:"weights"`
 	Thresholds  map[string]float64 `json:"verdict_thresholds"`
-	Totals      Totals            `json:"totals"`
-	Clusters    []score.Result    `json:"clusters"`
+	Totals      Totals             `json:"totals"`
+	Clusters    []score.Result     `json:"clusters"`
 }
 
 type IngestSummary struct {

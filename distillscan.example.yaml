@@ -1,0 +1,16 @@
+# distillscan configuration — copy to distillscan.yaml next to your traces
+# (or pass -config). Everything here is DECLARED, not measured: the scanner
+# folds these into scoring but always labels them as operator input.
+
+# Does the teacher model's terms of service allow training on its outputs?
+#   yes     -> factor 1.0
+#   unknown -> factor 0.5 (default)
+#   no      -> factor 0.0 AND the verdict is hard-gated to NOT READY
+data_rights: unknown
+
+# Is this workload in a safety-critical path? true caps verdicts at BORDERLINE.
+safety_critical: false
+
+# Assumed share of a cluster's spend a distilled model could substitute.
+# Used only for the savings estimate; printed in every report.
+substitution_ratio: 0.65

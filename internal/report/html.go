@@ -26,8 +26,8 @@ func WriteHTML(r *Report, dir string) (string, error) {
 var htmlTmpl = template.Must(template.New("report").Funcs(template.FuncMap{
 	"usd":  usd,
 	"add1": func(i int) int { return i + 1 },
-	"pct": func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
-	"f2":  func(v float64) string { return fmt.Sprintf("%.2f", v) },
+	"pct":  func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
+	"f2":   func(v float64) string { return fmt.Sprintf("%.2f", v) },
 	"bar": func(v float64) template.CSS {
 		if v < 0 {
 			v = 0
