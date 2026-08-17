@@ -27,6 +27,13 @@ type Config struct {
 	// printed explicitly in every report. Default 0.65 (conservative:
 	// assumes residual teacher fallback + student serving cost).
 	SubstitutionRatio float64 `yaml:"substitution_ratio"`
+
+	// SamplingRate is the declared share of production traffic present in
+	// the scanned export, in (0,1]. Extrapolated spend/savings are divided
+	// by it (a 10% sample means true spend is ~10x what was observed).
+	// Declared, not measured — always printed in the report when it shapes
+	// the numbers. Default 1.0 (the export is the full traffic).
+	SamplingRate float64 `yaml:"sampling_rate"`
 }
 
 // Default returns the config used when no distillscan.yaml is present.
@@ -35,6 +42,7 @@ func Default() Config {
 		DataRights:        "unknown",
 		SafetyCritical:    false,
 		SubstitutionRatio: 0.65,
+		SamplingRate:      1.0,
 	}
 }
 
@@ -57,6 +65,9 @@ func Load(path string) (Config, error) {
 	}
 	if cfg.SubstitutionRatio <= 0 || cfg.SubstitutionRatio > 1 {
 		return cfg, fmt.Errorf("%s: substitution_ratio must be in (0,1], got %v", path, cfg.SubstitutionRatio)
+	}
+	if cfg.SamplingRate <= 0 || cfg.SamplingRate > 1 {
+		return cfg, fmt.Errorf("%s: sampling_rate must be in (0,1], got %v", path, cfg.SamplingRate)
 	}
 	return cfg, nil
 }

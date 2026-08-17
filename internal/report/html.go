@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Mindburn-Labs/distillscan/internal/score"
 )
 
 // WriteHTML writes report.html into dir: one self-contained file, inline CSS,
@@ -26,8 +28,16 @@ func WriteHTML(r *Report, dir string) (string, error) {
 var htmlTmpl = template.Must(template.New("report").Funcs(template.FuncMap{
 	"usd":  usd,
 	"add1": func(i int) int { return i + 1 },
-	"pct":  func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
-	"f2":   func(v float64) string { return fmt.Sprintf("%.2f", v) },
+	"plus": func(a, b int) int { return a + b },
+	"sumSavings": func(rs []score.Result) float64 {
+		t := 0.0
+		for _, r := range rs {
+			t += r.SavingsUSD
+		}
+		return t
+	},
+	"pct": func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
+	"f2":  func(v float64) string { return fmt.Sprintf("%.2f", v) },
 	"bar": func(v float64) template.CSS {
 		if v < 0 {
 			v = 0
@@ -115,13 +125,19 @@ const htmlSrc = `<!doctype html>
   <div class="assume">
     <strong>Assumptions behind every number below</strong>
     <ul>
+      {{if ne .Assumptions.SamplingRate 1.0}}
+      <li>Est. annual savings = window spend × {{f2 .Assumptions.AnnualizationFactor}} annualization ÷ {{f2 .Assumptions.SamplingRate}} declared sampling rate × {{pct .Assumptions.SubstitutionRatio}} assumed substitution ratio.</li>
+      <li>sampling_rate = <b>{{f2 .Assumptions.SamplingRate}}</b> is declared, not measured: the export is treated as that share of real traffic.</li>
+      {{else}}
       <li>Est. annual savings = window spend × {{f2 .Assumptions.AnnualizationFactor}} annualization × {{pct .Assumptions.SubstitutionRatio}} assumed substitution ratio.</li>
+      {{end}}
       <li>Prices: bundled snapshot {{.Assumptions.PricingSnapshot}}; traces carrying their own cost use it instead.{{if gt .Totals.UnpricedCalls 0}} {{.Totals.UnpricedCalls}} call(s) on unknown models counted as $0.{{end}}</li>
       <li>Declared, not measured: data_rights = <b>{{.Assumptions.DataRights}}</b>, safety_critical = <b>{{.Assumptions.SafetyCritical}}</b>{{if .Assumptions.ConfigPath}} (from {{.Assumptions.ConfigPath}}){{else}} (defaults){{end}}.</li>
-      <li>Verdicts: READY ≥ {{index .Thresholds "ready" | f2}}, BORDERLINE ≥ {{index .Thresholds "borderline" | f2}}, else NOT READY.</li>
+      <li>Verdicts: READY ≥ {{index .Thresholds "ready" | f2}}, BORDERLINE ≥ {{index .Thresholds "borderline" | f2}}, else NOT READY.{{if and (ne .Assumptions.DataRights "yes") (ne .Assumptions.DataRights "no")}} data_rights = {{.Assumptions.DataRights}} caps READY at BORDERLINE — ready pending rights verification.{{end}}</li>
     </ul>
   </div>
 
+  {{$main := .MainClusters}}{{$below := .BelowClusters}}
   <div class="tablewrap">
   <table>
     <thead><tr>
@@ -130,7 +146,7 @@ const htmlSrc = `<!doctype html>
       <th class="num">Score</th><th>Verdict</th>
     </tr></thead>
     <tbody>
-    {{range $i, $c := .Clusters}}
+    {{range $i, $c := $main}}
       <tr>
         <td>{{add1 $i}}</td>
         <td>{{$c.Label}}</td>
@@ -146,8 +162,39 @@ const htmlSrc = `<!doctype html>
   </table>
   </div>
 
+  {{if $below}}
+  <details>
+    <summary>Below min-savings threshold ({{usd .MinSavingsUSD}}/yr)
+      <span class="sub">— {{len $below}} cluster(s) · {{usd (sumSavings $below)}} combined est. annual savings · folded as noise; scores and verdicts unaffected (rerun with -min-savings 0 to unfold)</span>
+    </summary>
+    <div class="body tablewrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Cluster</th><th class="num">Calls</th><th>Top model</th>
+        <th class="num">Spend (window)</th><th class="num">Est. annual savings</th>
+        <th class="num">Score</th><th>Verdict</th>
+      </tr></thead>
+      <tbody>
+      {{range $i, $c := $below}}
+        <tr>
+          <td>{{plus (len $main) (add1 $i)}}</td>
+          <td>{{$c.Label}}</td>
+          <td class="num">{{$c.Calls}}</td>
+          <td>{{$c.TopModel}}</td>
+          <td class="num">{{usd $c.SpendUSD}}</td>
+          <td class="num">{{usd $c.SavingsUSD}}</td>
+          <td class="num">{{f2 $c.Composite}}</td>
+          <td><span class="verdict {{verdictClass $c.Verdict}}">{{$c.Verdict}}</span></td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </details>
+  {{end}}
+
   <h2 style="font-size:1.1rem;margin-top:2rem">Factor breakdown</h2>
-  {{range $i, $c := .Clusters}}
+  {{range $i, $c := $main}}
   <details{{if eq $i 0}} open{{end}}>
     <summary>{{add1 $i}}. {{$c.Label}}
       <span class="sub">— {{$c.Calls}} calls · {{usd $c.SpendUSD}} in window · score {{f2 $c.Composite}} · {{$c.Verdict}}</span>

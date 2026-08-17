@@ -40,8 +40,11 @@ const (
 )
 
 // Hard gates, applied after the composite:
-//   - data_rights: "no"    -> verdict forced to NOT READY (ToS forbids it)
-//   - safety_critical: yes -> verdict capped at BORDERLINE
+//   - data_rights: "no"      -> verdict forced to NOT READY (ToS forbids it)
+//   - data_rights: "unknown" -> verdict capped at BORDERLINE (READY requires
+//     explicitly declared rights; report reads "ready pending rights
+//     verification")
+//   - safety_critical: yes   -> verdict capped at BORDERLINE
 const (
 	VerdictReady      = "READY"
 	VerdictBorderline = "BORDERLINE"
@@ -81,6 +84,11 @@ type Result struct {
 	Verdict        string         `json:"verdict"`
 	Notes          []string       `json:"notes"`
 	SampleTemplate string         `json:"sample_template"`
+
+	// BelowMinSavings marks clusters whose estimated annual savings fall
+	// under the report's min-savings noise threshold. Set at report build
+	// time (presentation only — factors and verdict are unaffected).
+	BelowMinSavings bool `json:"below_min_savings"`
 }
 
 // Assumptions echoes every knob that shaped the numbers.
@@ -91,6 +99,7 @@ type Assumptions struct {
 	PricingSnapshot     string  `json:"pricing_snapshot_date"`
 	DataRights          string  `json:"declared_data_rights"`
 	SafetyCritical      bool    `json:"declared_safety_critical"`
+	SamplingRate        float64 `json:"declared_sampling_rate"`
 	ConfigPath          string  `json:"config_path,omitempty"`
 }
 
@@ -101,6 +110,14 @@ func Run(clusters []*cluster.Cluster, prices *pricing.Table, cfg config.Config, 
 	start, end := window(clusters)
 	windowDays := math.Max(end.Sub(start).Hours()/24, 1) // clamp: never extrapolate from <1 day as if it were less
 	annualFactor := 365.0 / windowDays
+
+	// Declared sampling rate: the export is a sample of production traffic,
+	// so extrapolated spend/savings are divided by it. Guard against
+	// zero-value configs built outside config.Load.
+	samplingRate := cfg.SamplingRate
+	if samplingRate <= 0 || samplingRate > 1 {
+		samplingRate = 1.0
+	}
 
 	totalSpend := 0.0
 	spend := make([]float64, len(clusters))
@@ -113,7 +130,7 @@ func Run(clusters []*cluster.Cluster, prices *pricing.Table, cfg config.Config, 
 
 	results := make([]Result, 0, len(clusters))
 	for i, cl := range clusters {
-		results = append(results, scoreCluster(cl, spend[i], unpriced[i], totalSpend, annualFactor, cfg))
+		results = append(results, scoreCluster(cl, spend[i], unpriced[i], totalSpend, annualFactor, samplingRate, cfg))
 	}
 	sort.SliceStable(results, func(i, j int) bool {
 		if results[i].SavingsUSD != results[j].SavingsUSD {
@@ -129,6 +146,7 @@ func Run(clusters []*cluster.Cluster, prices *pricing.Table, cfg config.Config, 
 		PricingSnapshot:     prices.SnapshotDate,
 		DataRights:          cfg.DataRights,
 		SafetyCritical:      cfg.SafetyCritical,
+		SamplingRate:        samplingRate,
 		ConfigPath:          cfgPath,
 	}
 }
@@ -167,7 +185,7 @@ func clusterSpend(cl *cluster.Cluster, prices *pricing.Table) (usd float64, unpr
 	return usd, unpriced
 }
 
-func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, totalSpend, annualFactor float64, cfg config.Config) Result {
+func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, totalSpend, annualFactor, samplingRate float64, cfg config.Config) Result {
 	n := len(cl.Calls)
 	r := Result{
 		Key: cl.Key, Label: cl.Label, Kind: cl.Kind,
@@ -311,11 +329,17 @@ func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, tota
 	default:
 		r.Verdict = VerdictNotReady
 	}
-	// Hard gates.
-	if cfg.DataRights == "no" {
+	// Hard gates. READY requires explicitly declared data rights: "no"
+	// forces NOT READY, anything short of "yes" caps at BORDERLINE.
+	switch {
+	case cfg.DataRights == "no":
 		r.Verdict = VerdictNotReady
 		r.Notes = append(r.Notes, "gate: data_rights=no forces NOT READY (declared)")
-	} else if cfg.SafetyCritical && r.Verdict == VerdictReady {
+	case cfg.DataRights != "yes" && r.Verdict == VerdictReady:
+		r.Verdict = VerdictBorderline
+		r.Notes = append(r.Notes, "gate: data_rights=unknown caps at BORDERLINE — ready pending rights verification (declared)")
+	}
+	if cfg.SafetyCritical && r.Verdict == VerdictReady {
 		r.Verdict = VerdictBorderline
 		r.Notes = append(r.Notes, "gate: safety_critical=yes caps verdict at BORDERLINE (declared)")
 	}
@@ -326,8 +350,10 @@ func scoreCluster(cl *cluster.Cluster, spendUSD float64, unpricedCalls int, tota
 		r.Notes = append(r.Notes, fmt.Sprintf("%d call(s) on models missing from the pricing snapshot: excluded from spend", unpricedCalls))
 	}
 
-	// Savings: window spend, annualized, times the assumed substitution ratio.
-	r.AnnualizedUSD = spendUSD * annualFactor
+	// Savings: window spend, annualized, scaled up by the declared sampling
+	// rate (observed spend is samplingRate of the real thing), times the
+	// assumed substitution ratio.
+	r.AnnualizedUSD = spendUSD * annualFactor / samplingRate
 	r.SavingsUSD = r.AnnualizedUSD * cfg.SubstitutionRatio
 	return r
 }

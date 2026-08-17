@@ -1,5 +1,9 @@
 # Demo declared factors for the fixture scan.
 # These are folded into scoring but always rendered "declared, not measured".
-data_rights: unknown    # yes | no | unknown - teacher ToS allows training on outputs
-safety_critical: false  # true forces a BORDERLINE cap; see internal/score
+# The traces here are synthetic, so rights are declared "yes" to show the full
+# verdict range; with the default "unknown", READY is capped at BORDERLINE
+# (ready pending rights verification).
+data_rights: "yes"      # yes | no | unknown - teacher ToS allows training on outputs
+safety_critical: false  # true caps verdicts at BORDERLINE; see internal/score
 substitution_ratio: 0.65
+sampling_rate: 1.0      # declared share of real traffic in this export; <1 scales extrapolation up

@@ -4,7 +4,9 @@
 
 # Does the teacher model's terms of service allow training on its outputs?
 #   yes     -> factor 1.0
-#   unknown -> factor 0.5 (default)
+#   unknown -> factor 0.5 (default) AND READY is capped at BORDERLINE
+#              ("ready pending rights verification" — READY requires
+#              explicitly declared rights)
 #   no      -> factor 0.0 AND the verdict is hard-gated to NOT READY
 data_rights: unknown
 
@@ -14,3 +16,8 @@ safety_critical: false
 # Assumed share of a cluster's spend a distilled model could substitute.
 # Used only for the savings estimate; printed in every report.
 substitution_ratio: 0.65
+
+# Share of real traffic present in this export, in (0,1]. Declared, not
+# measured. Extrapolated spend/savings are divided by it: a 10% sample
+# (0.10) means true spend is treated as 10x what was observed. Default 1.0.
+sampling_rate: 1.0

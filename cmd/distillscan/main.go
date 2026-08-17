@@ -4,7 +4,7 @@
 //
 // Usage:
 //
-//	distillscan scan [-config distillscan.yaml] [-out DIR] <path>
+//	distillscan scan [-config distillscan.yaml] [-out DIR] [-min-savings USD] <path>
 //
 // <path> is a trace file or a directory scanned recursively for OTLP/JSON
 // trace exports and Langfuse observations_v2 JSONL exports.
@@ -43,7 +43,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, `usage: distillscan scan [-config distillscan.yaml] [-out DIR] <path>
+	fmt.Fprintln(os.Stderr, `usage: distillscan scan [-config distillscan.yaml] [-out DIR] [-min-savings USD] <path>
 
 Scans OTLP/JSON GenAI traces and Langfuse observations_v2 JSONL exports,
 clusters LLM calls into recurring tasks, and reports which clusters are
@@ -54,6 +54,8 @@ func runScan(args []string) error {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	cfgPath := fs.String("config", "", "path to distillscan.yaml (default: auto-detect next to <path>, then ./distillscan.yaml)")
 	outDir := fs.String("out", ".", "directory for report.json / report.html")
+	minSavings := fs.Float64("min-savings", report.DefaultMinSavingsUSD,
+		"noise threshold in USD/yr: clusters with estimated annual savings below it fold into a collapsed \"below threshold\" section (0 disables)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -95,7 +97,7 @@ func runScan(args []string) error {
 	clusters := cluster.Group(calls)
 	results, assumptions := score.Run(clusters, prices, cfg, cfgFrom)
 
-	rep := report.Build(path, stats, results, assumptions)
+	rep := report.Build(path, stats, results, assumptions, *minSavings)
 	report.Terminal(os.Stdout, rep)
 
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
