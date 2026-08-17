@@ -2,6 +2,9 @@
 /distillscan
 /dist/
 
+# OS noise
+.DS_Store
+
 # Generated reports (demo output)
 report.json
 report.html
