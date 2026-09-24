@@ -18,8 +18,7 @@ fastest.
 ## Workflow
 
 1. Fork, branch, make the change.
-2. `make check` must pass (build + vet + test), and `gofmt -l .` must print
-   nothing — CI enforces both.
+2. `make check` must pass (build + vet + test + gofmt); CI runs it.
 3. If you touched fixtures or the generator, run `make fixtures` and commit
    the result; generation is seeded and byte-reproducible.
 4. Open a PR with a short description of what changed and why. For behavior
