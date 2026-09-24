@@ -170,7 +170,7 @@ and is always rendered "declared, not measured":
 ## Development
 
 ```sh
-make check   # build + vet + test
+make check   # build + vet + test + gofmt
 ```
 
 Go 1.25, single dependency (`gopkg.in/yaml.v3`). The Makefile pins
