@@ -62,7 +62,7 @@ below min-savings threshold ($100/yr; -min-savings to change): 4 cluster(s), $11
 
 assumptions (printed, not hidden):
   - savings = window spend x 52.13 annualization x 65% assumed substitution ratio
-  - prices: bundled snapshot 2026-08-01 (traces with their own cost use it instead)
+  - prices: bundled snapshot 2026-09-25 (traces with their own cost use it instead)
   - declared, not measured: data_rights=yes, safety_critical=false (from fixtures/distillscan.yaml)
   - 15 call(s) on unknown models carry $0 in these numbers
   - verdicts: READY >= 0.65, BORDERLINE >= 0.45, else NOT READY
@@ -150,6 +150,14 @@ and is always rendered "declared, not measured":
 - `internal/pricing/prices.yaml` is a dated snapshot used only when a trace
   carries no cost of its own. Unknown models are counted as $0 and reported,
   never guessed.
+- The snapshot's current Anthropic models (`claude-fable-5-1`,
+  `claude-opus-5-5`, `claude-sonnet-5`, `claude-haiku-4-5`) and OpenAI models
+  (`gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`) carry official standard-tier
+  list prices verified on 2026-09-25; sources are in the file. Provider and
+  OpenRouter IDs (`openai/gpt-6-sol`, `anthropic/claude-opus-5.5`) resolve
+  to the same rows. Only base input/output rates are modeled: every input
+  token a trace reports is priced at the base input rate, with no cache,
+  batch or long-context adjustment.
 - Repetition/drift look at the template *prefix* (the instruction head), so
   variable payloads (documents, tickets) don't read as churn — but freeform
   surfaces are caught by evaluability, and template-keyed clusters can't

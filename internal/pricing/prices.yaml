@@ -1,18 +1,44 @@
-# DEMO PRICING SNAPSHOT — not live prices.
+# PRICING SNAPSHOT — not live prices.
 #
 # USD per 1M tokens, used only when a trace carries no cost of its own
 # (Langfuse calculated costs win when present). Edit freely; the scanner
 # reports the snapshot date with every estimate. Model names are matched
 # case-insensitively after stripping provider prefixes ("openai/...") and
-# date/version suffixes ("-2024-08-06", "-20250514", "-latest"), then by
-# longest-prefix match against the keys below.
-snapshot_date: "2026-08-01"
+# date/version suffixes ("-2024-08-06", "-20250514", "-latest"), with
+# OpenRouter-style dotted Claude versions ("claude-opus-5.5") read as dashes,
+# then by longest-prefix match against the keys below.
+#
+# Provenance:
+# - Anthropic rows: official list prices, standard tier, verified 2026-09-25
+#   at https://platform.claude.com/docs/en/about-claude/pricing
+#   (claude-3-7-sonnet is no longer listed there and was not re-verified).
+# - OpenAI gpt-6-* rows: official list prices, standard tier, short context,
+#   verified 2026-09-25 at https://developers.openai.com/api/docs/pricing
+#   (older OpenAI rows are not listed there and were not re-verified).
+# - All other rows: carried over from the 2026-08-01 demo snapshot, unverified.
+# Only base input/output rates are modeled: cache reads/writes, batch, long
+# context and fast mode are not, so every input token is priced at the base
+# input rate.
+snapshot_date: "2026-09-25"
 models:
+  gpt-6-astra:       { input: 10.00, output: 50.00 }
+  gpt-6-sol:         { input: 2.00,  output: 10.00 }
+  gpt-6-luna:        { input: 0.10,  output: 0.50 }
   gpt-4o:            { input: 2.50,  output: 10.00 }
   gpt-4o-mini:       { input: 0.15,  output: 0.60 }
   gpt-4.1:           { input: 2.00,  output: 8.00 }
   gpt-4.1-mini:      { input: 0.40,  output: 1.60 }
   o3-mini:           { input: 1.10,  output: 4.40 }
+  claude-fable-5-1:  { input: 10.00, output: 50.00 }
+  claude-opus-5-5:   { input: 4.00,  output: 20.00 }
+  claude-sonnet-5:   { input: 2.00,  output: 10.00 }
+  claude-haiku-4-5:  { input: 1.00,  output: 5.00 }
+  # Opus 4.5-4.8 cost $5/$25; without these rows they would prefix-match
+  # claude-opus-4 at the Opus 4 / 4.1 price.
+  claude-opus-4-8:   { input: 5.00,  output: 25.00 }
+  claude-opus-4-7:   { input: 5.00,  output: 25.00 }
+  claude-opus-4-6:   { input: 5.00,  output: 25.00 }
+  claude-opus-4-5:   { input: 5.00,  output: 25.00 }
   claude-opus-4:     { input: 15.00, output: 75.00 }
   claude-sonnet-4:   { input: 3.00,  output: 15.00 }
   claude-3-7-sonnet: { input: 3.00,  output: 15.00 }
