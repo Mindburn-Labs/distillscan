@@ -55,6 +55,9 @@ func Normalize(model string) string {
 	if i := strings.LastIndex(m, "/"); i >= 0 { // "openai/gpt-4o" -> "gpt-4o"
 		m = m[i+1:]
 	}
+	if strings.HasPrefix(m, "claude-") { // OpenRouter "claude-opus-5.5" -> Anthropic "claude-opus-5-5"
+		m = strings.ReplaceAll(m, ".", "-")
+	}
 	for {
 		next := reSuffix.ReplaceAllString(m, "")
 		if next == m {
