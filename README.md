@@ -1,12 +1,8 @@
 # distillscan
 
-Offline scanner for LLM trace exports. Point it at the traces you already
-have; it clusters your recurring workloads and reports which ones look ready
-to distill onto a smaller, cheaper model — ranked by estimated annual
-savings, with every assumption printed in the report it hands you.
-
-Traces in → readiness report out. Nothing else: no training, no API calls,
-no data leaving your machine.
+distillscan reads local LLM trace exports, groups recurring workloads, and ranks
+candidates for model distillation by estimated annual savings. The report
+shows the assumptions behind each estimate.
 
 **Status: early prototype (v0.1).** The CLI and report formats may still
 change. Built by [Mindburn Labs](https://mindburn.org).
@@ -31,14 +27,17 @@ cd distillscan
 make demo   # = go run ./cmd/distillscan scan fixtures
 ```
 
-Prebuilt binaries and a `uvx` shim are planned but **not available yet** —
-for now the Go toolchain is the only install path.
-
 Every scan prints a ranked table and writes `report.json` (machine-readable,
 every factor and formula) and `report.html` (single self-contained file, no
-scripts) to the current directory. `-out DIR` moves them, `-config FILE`
-points at a config, `-min-savings USD` adjusts the noise threshold
-(default $100/yr; `0` disables it).
+scripts) to the current directory. Set `-out DIR` for another report directory,
+`-config FILE` to use a specific config, or `-min-savings USD` to change the
+default threshold of $100/year. Set the threshold to `0` to disable it.
+
+Pass scan flags before the input path:
+
+```sh
+distillscan scan -out ./reports ./my-traces/
+```
 
 ## What a scan looks like
 
@@ -82,8 +81,8 @@ not benchmark or compare providers.
   (`gen_ai.system`, `gen_ai.usage.prompt_tokens`), current
   (`gen_ai.provider.name`, `gen_ai.usage.input_tokens`,
   `gen_ai.input.messages`), and OpenLLMetry-style indexed prompts
-  (`gen_ai.prompt.{n}.content`, `llm.*`). One alias table
-  (`internal/ingest/otlp.go`) normalizes all of them into one call model.
+  (`gen_ai.prompt.{n}.content`, `llm.*`). The alias table in
+  `internal/ingest/otlp_normalize.go` maps all three forms into one call model.
 - **Langfuse `observations_v2` JSONL** exports (one JSON object per line,
   tolerant field precedence; per-call calculated costs are used when
   present).
@@ -141,7 +140,7 @@ and is always rendered "declared, not measured":
   in (0,1]. Extrapolated spend/savings are divided by it; a 10% sample means
   true spend is treated as 10× what was observed. Default 1.0.
 
-### Honest limits
+### Scoring and pricing limits
 
 - Savings are **estimates computed from your own traces**: window spend ×
   annualization ÷ declared sampling rate × an assumed substitution ratio,
@@ -163,17 +162,14 @@ and is always rendered "declared, not measured":
   surfaces are caught by evaluability, and template-keyed clusters can't
   show drift by construction.
 
-## What it does NOT do
+## Execution and decision scope
 
-- **No training, no distillation runs.** It tells you where distillation
-  looks worth trying; it never touches a model.
-- **No network, no telemetry.** The binary makes zero network calls — it
-  reads the files you point it at and writes reports next to you. Pricing
-  data is embedded at build time.
-- **No provider benchmarking.** It ranks your workloads by your own spend
-  and structure; it does not rate, compare, or recommend model vendors.
-- **No verdict authority.** READY is a heuristic with its formula printed;
-  rights, safety, and rollout decisions stay with you.
+- The scan runs offline, reading local trace files and writing local reports.
+  Pricing data is embedded at build time.
+- Workload rankings reflect your own spending and trace structure. Training,
+  distillation runs, and provider comparisons are separate evaluations.
+- READY is a heuristic. Use it to prioritize evaluation. Rights, safety, and
+  rollout decisions stay with you.
 
 ## Development
 
