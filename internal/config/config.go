@@ -63,10 +63,10 @@ func Load(path string) (Config, error) {
 	default:
 		return cfg, fmt.Errorf("%s: data_rights must be yes|no|unknown, got %q", path, cfg.DataRights)
 	}
-	if cfg.SubstitutionRatio <= 0 || cfg.SubstitutionRatio > 1 {
+	if !(cfg.SubstitutionRatio > 0 && cfg.SubstitutionRatio <= 1) {
 		return cfg, fmt.Errorf("%s: substitution_ratio must be in (0,1], got %v", path, cfg.SubstitutionRatio)
 	}
-	if cfg.SamplingRate <= 0 || cfg.SamplingRate > 1 {
+	if !(cfg.SamplingRate > 0 && cfg.SamplingRate <= 1) {
 		return cfg, fmt.Errorf("%s: sampling_rate must be in (0,1], got %v", path, cfg.SamplingRate)
 	}
 	return cfg, nil

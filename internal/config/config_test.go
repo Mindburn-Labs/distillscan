@@ -68,6 +68,17 @@ func TestLoadSamplingRate(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsNaNRatios(t *testing.T) {
+	for _, field := range []string{"sampling_rate", "substitution_ratio"} {
+		t.Run(field, func(t *testing.T) {
+			_, err := Load(writeTemp(t, field+": .nan\n"))
+			if err == nil || !strings.Contains(err.Error(), field) {
+				t.Fatalf("Load error = %v, want an error naming %s", err, field)
+			}
+		})
+	}
+}
+
 func TestLoadDataRights(t *testing.T) {
 	// Quoted and bare spellings must both decode as the string "yes"
 	// (yaml.v3 does not treat yes/no as booleans).

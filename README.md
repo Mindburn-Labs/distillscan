@@ -146,17 +146,11 @@ and is always rendered "declared, not measured":
   annualization ÷ declared sampling rate × an assumed substitution ratio,
   all printed in every report. They are a prioritization signal, not billing
   truth, and not a promise.
-- `internal/pricing/prices.yaml` is a dated snapshot used only when a trace
-  carries no cost of its own. Unknown models are counted as $0 and reported,
-  never guessed.
-- The snapshot's current Anthropic models (`claude-fable-5-1`,
-  `claude-opus-5-5`, `claude-sonnet-5`, `claude-haiku-4-5`) and OpenAI models
-  (`gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`) carry official standard-tier
-  list prices verified on 2026-09-25; sources are in the file. Provider and
-  OpenRouter IDs (`openai/gpt-6-sol`, `anthropic/claude-opus-5.5`) resolve
-  to the same rows. Only base input/output rates are modeled: every input
-  token a trace reports is priced at the base input rate, with no cache,
-  batch or long-context adjustment.
+- The [bundled pricing snapshot](internal/pricing/prices.yaml) supplies rates
+  when the trace carries no cost. The file lists model aliases and pricing
+  sources. Unknown models are counted as $0 and reported.
+- The estimate uses base input and output rates. Cache, batch, and
+  long-context adjustments require a cost recorded in the trace.
 - Repetition/drift look at the template *prefix* (the instruction head), so
   variable payloads (documents, tickets) don't read as churn — but freeform
   surfaces are caught by evaluability, and template-keyed clusters can't
