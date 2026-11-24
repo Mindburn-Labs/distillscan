@@ -19,6 +19,13 @@ func wrap(attrs, status string) []byte {
 	}`, attrs, status))
 }
 
+func TestJoinIndexedPreservesSparseOrder(t *testing.T) {
+	parts := map[int]string{15: "last", -1: "ignored", 0: "first", 8: "middle", 4: ""}
+	if got, want := joinIndexed(parts), "first\nmiddle\nlast"; got != want {
+		t.Errorf("joined indexed messages = %q, want %q", got, want)
+	}
+}
+
 func TestNormalizeAcrossAttributeGenerations(t *testing.T) {
 	cases := []struct {
 		name  string
