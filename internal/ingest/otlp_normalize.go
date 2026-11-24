@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -109,8 +110,9 @@ func normalizeSpan(sp otlpSpan, source string) (trace.Call, bool) {
 		if m := rePromptIdx.FindStringSubmatch(kv.Key); m != nil {
 			sawGenAI = true
 			if m[2] == "content" {
-				i, _ := strconv.Atoi(m[1])
-				promptParts[i] = kv.Value.asString()
+				if i, err := strconv.Atoi(m[1]); err == nil {
+					promptParts[i] = kv.Value.asString()
+				}
 			}
 			continue
 		}
@@ -121,10 +123,11 @@ func normalizeSpan(sp otlpSpan, source string) (trace.Call, bool) {
 		}
 		if m := reCompletionIdx.FindStringSubmatch(kv.Key); m != nil {
 			sawGenAI = true
-			i, _ := strconv.Atoi(m[1])
 			switch m[2] {
 			case "content":
-				completionParts[i] = kv.Value.asString()
+				if i, err := strconv.Atoi(m[1]); err == nil {
+					completionParts[i] = kv.Value.asString()
+				}
 			case "finish_reason":
 				if kv.Value.asString() == "tool_calls" {
 					sawToolCalls = true
@@ -240,20 +243,20 @@ func normalizeSpan(sp otlpSpan, source string) (trace.Call, bool) {
 }
 
 func joinIndexed(parts map[int]string) string {
-	max := -1
-	for i := range parts {
-		if i > max {
-			max = i
+	indexes := make([]int, 0, len(parts))
+	for index, text := range parts {
+		if index >= 0 && text != "" {
+			indexes = append(indexes, index)
 		}
 	}
+	slices.Sort(indexes)
+
 	var b strings.Builder
-	for i := 0; i <= max; i++ {
-		if s, ok := parts[i]; ok && s != "" {
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(s)
+	for _, index := range indexes {
+		if b.Len() > 0 {
+			b.WriteByte('\n')
 		}
+		b.WriteString(parts[index])
 	}
 	return b.String()
 }
