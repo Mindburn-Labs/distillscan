@@ -13,6 +13,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/Mindburn-Labs/distillscan/internal/cluster"
@@ -62,6 +63,9 @@ func runScan(args []string) error {
 	if fs.NArg() != 1 {
 		usage()
 		return fmt.Errorf("scan needs exactly one <path> argument")
+	}
+	if math.IsNaN(*minSavings) || math.IsInf(*minSavings, 0) {
+		return fmt.Errorf("min-savings must be finite, got %v", *minSavings)
 	}
 	path := fs.Arg(0)
 
